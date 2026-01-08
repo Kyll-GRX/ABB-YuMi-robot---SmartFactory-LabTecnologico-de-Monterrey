@@ -31,4 +31,4 @@ Se recomienda verificar offsets, límites y conexión Ethernet antes de operar.
 Mantener siempre disponible el botón de paro de emergencia.
 
 
-Proyecto hecho por los ingenieros Carlos MARTINEZ GARCIA (mgcar_los@hotmail.com) y Kyllians GROUX (kyllias.groux@edu.ece.fr)
+Proyecto hecho por los ingenieros Carlos MARTINEZ GARCIA (mgcar_los@hotmail.com) y Kyllians GROUX (kyllians.groux@edu.ece.fr)
