@@ -1,3 +1,5 @@
+
+
 import socket
 import cv2 as cv
 import mediapipe as mp
@@ -20,18 +22,20 @@ GRIPPER_THRESH = 30
 # Factores de escala (ajustar de acuerdo con la configuraciòn real)
 ESCALA_X = 300      # antes fue 150
 ESCALA_Y = 300      # antes fue 150
-CAM_MAX_X = 300      #mm   por el mapping de las coordenadas
+CAM_MAX_X = 300     #mm   por el mapping de las coordenadas
 CAM_MIN_X = 0 
 CAM_MAX_Y = 300
 CAM_MIN_Y = 0 
-ROB_MAX_X = 450 
-ROB_MIN_X = -450
+CAM_MIN_Z = 1
+CAM_MAX_Z = 10 
 ROB_L_MAX_X = 450
 ROB_L_MIN_X = 80
 ROB_R_MAX_X = -80
 ROB_R_MIN_X = -450
 ROB_MAX_Y = 650
 ROB_MIN_Y = 200
+ROB_MAX_Z = 500
+ROB_MIN_Z = -250
 
 # Intervalo de tiempo para el reenvìo de la ùltima posiciòn guardada
 RESEND_INTERVAL = 15.0  #s
@@ -81,14 +85,31 @@ depth_scale = depth_sensor.get_depth_scale()   #Se convierten los datos a mm
 
 
 # Funciòn para obtener el valor de la profundidad en mm de un punto x,y
-def get_depth_value(depth_frame, x, y):
-    depth_image = np.asanyarray(depth_frame.get_data())   # Convertir el frame a una matriz de Numpy
-    depth_value = depth_image[int(y),int(x)]*depth_scale
-    return depth_value if depth_value > 0 else None
+def get_depth_value(depth_frame, x, y, window=6):
+    depth_image = np.asanyarray(depth_frame.get_data())
+    height, width = depth_image.shape
+
+   # Poner limitas a las valores (to specified a minimum and maximum range)
+    x = int( np.clip(x, 0, width-1))
+    y = int( np.clip(y, 0, height-1))
+
+    half  =  window // 2
+    patch =  depth_image[
+        max(0, y-half):min(height, y+half+1),
+        max(0, x-half):min(width, x+half+1)
+    ] # patch es la zona de 6x6 pixels que usamos para hacer la estimacion de la profundidad
+    valid = patch[patch > 0]   # ignora los píxeles cuyo valor es 0. En imágenes 3D, un pixel con valor 0 significa que la camara no ha podido medir la distancia..
+
+    if len(valid) == 0:
+        return None
+
+    # la profundidad esta calculada con la mediana de los pixeles validos. Usar la mediana es mas robusto que usar el promedio, ya que elimina los valores atipicos (the noise)..
+    profundidad = np.median(valid) * depth_scale
+    return profundidad 
 #EndOfFunction
 
 # Cuando la camara NO detecta 1 mano por un tiempo, enviar las previas coordenadas para no perder la conexion con el robot (por cada brazo)
-def detection(now, last_time, last_pos): 
+def detection(now, last_time): 
     if (now - last_time["left"] > RESEND_INTERVAL) :
         send_command( sock_left  , "L-NO-DATA" )    
         #send_command(sock_left, last_pos["left"])                 
@@ -124,7 +145,6 @@ def connect_socket(port):
 sock_left = connect_socket(portIzq)
 sock_right = connect_socket(portDer)
 
-    
 # Funciòn para enviar comandos a travès de la conexiòn Socket
 def send_command(sock, command):
     # --> Enviar comandos al YuMi sin cortar la comunicaciòn
@@ -163,18 +183,18 @@ def smooth(tcp_r, smooth_prev, label) :
 
 
 def map_range(tcp_r, label) :
-    if label == "left" :
-        ROB_MAX_X = -80
-        ROB_MIN_X = -450
-    else :
-        ROB_MAX_X = 450
-        ROB_MIN_X = 80
+    if label == "left":
+        arm_max_x = -80
+        arm_min_x = -450
+    else:
+        arm_max_x = 450
+        arm_min_x = 80
 
-    mapX = int( ROB_MIN_X + (tcp_r["x"] - CAM_MIN_X) * (ROB_MAX_X - ROB_MIN_X) / (CAM_MAX_X - CAM_MIN_X) )
-    if mapX > ROB_MAX_X:
-        tcp_r["x"] = ROB_MAX_X
-    elif mapX < ROB_MIN_X:
-        tcp_r["x"] = ROB_MIN_X
+    mapX = int( arm_min_x + (tcp_r["x"] - CAM_MIN_X) * (arm_max_x - arm_min_x) / (CAM_MAX_X - CAM_MIN_X) )
+    if mapX > arm_max_x:
+        tcp_r["x"] = arm_max_x
+    elif mapX < arm_min_x:
+        tcp_r["x"] = arm_min_x
     else:
         tcp_r["x"] = mapX
 
@@ -186,13 +206,13 @@ def map_range(tcp_r, label) :
     else:
         tcp_r["y"] = mapY
 
-    #mapZ = ROB_MIN_Z + (tcp_r["z"] - CAM_MIN_Z) * (ROB_MAX_Z - ROB_MIN_Z) / (CAM_MAX_Z - CAM_MIN_Z)
-    #if mapZ > ROB_MAX_Z:
-    #    tcp_r["z"] = ROB_MAX_Z
-    #elif mapZ < ROB_MIN_Z:
-    #    tcp_r["z"] = ROB_MIN_Z
-    #else:
-    #    tcp_r["z"] = mapZ
+    mapZ = int( ROB_MIN_Z + (tcp_r["z"] - CAM_MIN_Z) * (ROB_MAX_Z - ROB_MIN_Z) / (CAM_MAX_Z - CAM_MIN_Z) )
+    if mapZ > ROB_MAX_Z:
+        tcp_r["z"] = ROB_MAX_Z
+    elif mapZ < ROB_MIN_Z:
+        tcp_r["z"] = ROB_MIN_Z
+    else:
+        tcp_r["z"] = mapZ
 
     return tcp_r
 #EndOfFunction
@@ -209,7 +229,12 @@ def generate_coordinates(hand_landmarks, label, tcp_p, tcp_r, width, height):
   # Convertir coordenadas de 0-1 en pixeles
     tcp_p["x"]  =  int( tcp_x *width )
     tcp_p["y"]  =  int( tcp_y *height )
-    profundidad = get_depth_value( depth_frame, tcp_p["x"], tcp_p["z"] )
+    profundidad =  get_depth_value( depth_frame, tcp_p["x"], tcp_p["y"] )
+    print(f"DEPTH RAW = {profundidad}")
+    if profundidad is None:
+        profundidad = prev_tcp[label]["z"]
+    print(f"DEPTH RAW = {profundidad}")
+
   # Son las coordenadas que se enviaràn al robot en mm
 
 
@@ -221,7 +246,7 @@ def generate_coordinates(hand_landmarks, label, tcp_p, tcp_r, width, height):
     #avec l'axe des ords (0) au milieu et donc d'avoir du négatif pour la Izquierda
     tcp_r['y']  =  int( (1 - tcp_y) * ESCALA_Y)
     tcp_r['z']  =  profundidad
-    tcp_r  =  map_range(tcp_r, label)
+    tcp_r       =  map_range(tcp_r, label)
 
   # Mapear y suavizar los valores para permanecer en la zona operativa del robot
     #tcp_r  =  smooth(tcp_r, prev_tcp, label)
@@ -236,12 +261,12 @@ def generate_coordinates(hand_landmarks, label, tcp_p, tcp_r, width, height):
 # Funciòn para enviar las coordenadas al robot (via el socket)
 def send_coordinates(label, coordenadas, tcp_r, prev_tcp, now):
     if label == "left":
-        send_command( sock_left, coordenadas )
+    #    send_command( sock_left, coordenadas )
         last_time["left"]  = now
         print( f" Coordenadas TCP mano izquierda: {tcp_r['x']:04} , {tcp_r['y']:03} , {tcp_r['z']:03} ")
 
     else:
-        send_command( sock_right, coordenadas )
+    #    send_command( sock_right, coordenadas )
         last_time["right"] = now
         print( f" Coordenadas TCP mano derecha: {tcp_r['x']:04} , {tcp_r['y']:03} , {tcp_r['z']:03}  ")
 
@@ -380,6 +405,8 @@ with mpHands.Hands(static_image_mode=False,
 
                 # Reuperar las coordenadas de la camara y generar variables de posicion
                     coordenadas = generate_coordinates(hand_landmarks, label, tcp_p, tcp_r, width, height)
+                    if coordenadas is None:
+                        continue
                     
                 # Enviar los datos segun el brazo que corresponda a la mano detectada
                     # if (NOT (X AND Y AND Z !IN! their deadzones) OR timer > DEAD_TIMER) :
@@ -403,7 +430,7 @@ with mpHands.Hands(static_image_mode=False,
         
 
         # Cuando la camara NO detecta 1 mano por un tiempo, enviar las previas coordenadas para no perder la conexion con el robot (por cada brazo)
-            detection(now, last_time, last_pos)  
+            detection(now, last_time)  
 
         # Luego sigue mostrando la image
             cv.imshow( "rs2YuMi v.7.8.2" , frame )
