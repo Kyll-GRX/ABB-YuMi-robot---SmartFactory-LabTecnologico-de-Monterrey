@@ -2,7 +2,7 @@ MODULE MainModule
 !!! 
 !! Documentacion completa sobre las funcciones y los processos, abajo de este codigo
 !!! 
-
+ 
     VAR socketdev serverSocket_R;
     VAR socketdev clientSocket_R;
     VAR string receivedData_R;
@@ -30,7 +30,7 @@ MODULE MainModule
     CONST robtarget INICIAL_POS_R := [[295.00,-190.00,235.00],[0.558278,-0.650056,0.366482,-0.362552],[1,2,-1,4],[-127.013,9E+09,9E+09,9E+09,9E+09,9E+09]];
     CONST num PUERTO_BRAZO_R := 30011;
     
-    !Funci髇 para limitar coordenadas de TCP en rango seguro
+    !Funci贸n para limitar coordenadas de TCP en rango seguro
     FUNC robtarget LimitTCP(robtarget tcp)
         VAR robtarget safeTCP;
         safeTCP := tcp;
@@ -54,18 +54,18 @@ MODULE MainModule
         SocketBind serverSocket_R, "192.168.125.1", PUERTO_BRAZO_R;
         SocketListen serverSocket_R;
 
-        TPWrite "Esperando conexi髇 en el puerto 30011...";
+        TPWrite "Esperando conexi贸n en el puerto 30011...";
         g_Calibrate;   ! Calibramos el gripper antes de usarlo
 
         WHILE TRUE DO
             SocketAccept serverSocket_R, clientSocket_R;
-            TPWrite "Conexi髇 establecida con el cliente (brazo de derecha) ";
+            TPWrite "Conexi贸n establecida con el cliente (brazo de derecha) ";
 
             WHILE TRUE DO
                 ! Verificar el estado del socket antes de recibir datos
                 IF SocketGetStatus(clientSocket_R) = ERR_SOCK_CLOSED THEN
                     ! Checar si disconectado, si es.. conectar de vuelta..
-                    TPWrite "Conexi髇 cerrada. Esperando nueva conexi髇...";
+                    TPWrite "Conexi贸n cerrada. Esperando nueva conexi贸n...";
                     EXIT;
                 ENDIF
                 
@@ -73,13 +73,13 @@ MODULE MainModule
                 elapsed := 0;                
                 WHILE SocketPeek(clientSocket_R) = 0 DO
                     ! SocketPeek(clientSocket_R) checa si esta recibiendo bytes datas y cuentos
-                    ! Checar aqui la conexi髇, si =0 significa que no hay bytes, y entonces, no conexi髇..
+                    ! Checar aqui la conexi贸n, si =0 significa que no hay bytes, y entonces, no conexi贸n..
                     !WaitTime 100;   !this instruction blocks the entire program...
                     elapsed := elapsed + 100;
                     ! Esperar por intentar volver a conectarse
                     IF elapsed >= 1000000000 THEN
-                        ! Si no conexi髇 despues de 1000000000ms, el programa se apaga
-                        TPWrite "Timeout esperando datos, esperando nueva conexi髇...";
+                        ! Si no conexi贸n despues de 1000000000ms, el programa se apaga
+                        TPWrite "Timeout esperando datos, esperando nueva conexi贸n...";
                         EXIT;
                     ENDIF
                 ENDWHILE
@@ -87,9 +87,9 @@ MODULE MainModule
                 ! Recibir datos
                 SocketReceive clientSocket_R \Str := receivedData_R;
                 
-                ! Verificar que la cadena tiene datos v醠idos y mas de 12 (3 coordenadas 3D y 2 separaciones como " ; " + 1 especial al gripper de derecha)
+                ! Verificar que la cadena tiene datos v谩lidos y mas de 12 (3 coordenadas 3D y 2 separaciones como " ; " + 1 especial al gripper de derecha)
                 IF StrLen(receivedData_R) >= 14 THEN
-                    ! Convertir la cadena en valores num閞icos
+                    ! Convertir la cadena en valores num茅ricos
                     x_str := StrPart(receivedData_R,1,3);    ! Extraer el la primer cadena numerica (de 1 a 1+3), correspondiente a las primeras coordenadas
                     ok1 := StrToVal(x_str,x_val);            ! Convertir esta cadena numerica en numeros/cifras 
                     y_str := StrPart(receivedData_R,5,4);  
@@ -117,10 +117,10 @@ MODULE MainModule
                     ENDIF
                         
                 ELSE 
-                    TPWrite "ERR: Datos inv醠idos -> ";
+                    TPWrite "ERR: Datos inv谩lidos -> ";
                 ENDIF
         
-                ! Mover el brazo (tool0) a la posici髇 recibida (target_pos_L) con una velocidad de 600mm/s en la zona 50
+                ! Mover el brazo (tool0) a la posici贸n recibida (target_pos_L) con una velocidad de 600mm/s en la zona 50
                 MoveJ target_pos_R, v600, z50, tool0;
                     
                 !IF NOT IsMoving() THEN
@@ -193,4 +193,5 @@ MODULE MainModule
 !      9E+09 means: ignore this axis / no external axis used
 !
 !
+
 ENDMODULE
