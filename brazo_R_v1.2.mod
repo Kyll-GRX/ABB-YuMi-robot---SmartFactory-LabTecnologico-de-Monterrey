@@ -2,7 +2,7 @@ MODULE MainModule
 !!! 
 !! Documentacion completa sobre las funcciones y los processos, abajo de este codigo
 !!! 
- 
+
     VAR socketdev serverSocket_R;
     VAR socketdev clientSocket_R;
     VAR string receivedData_R;
@@ -195,3 +195,4 @@ MODULE MainModule
 !
 
 ENDMODULE
+
