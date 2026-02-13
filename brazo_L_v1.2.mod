@@ -1,4 +1,4 @@
-MODULE MainModule    
+MODULE MainModule 
     VAR socketdev serverSocket_L;
     VAR socketdev clientSocket_L;
     VAR string receivedData_L;
@@ -26,7 +26,7 @@ MODULE MainModule
     CONST robtarget INICIAL_POS_L := [[340.00,315.00,265.00],[0.385214,-0.336824,0.640231,-0.572944],[-1,0,1,4],[138.956,9E+09,9E+09,9E+09,9E+09,9E+09]];
     CONST num PUERTO_BRAZO_L := 30010;
     
-    ! Funci髇 para limitar coordenadas de TCP en rango seguro
+    ! Funci贸n para limitar coordenadas de TCP en rango seguro
     FUNC robtarget LimitTCP(robtarget tcp)
         VAR robtarget safeTCP;
         safeTCP := tcp;
@@ -50,31 +50,31 @@ MODULE MainModule
         SocketBind serverSocket_L, "192.168.125.1", PUERTO_BRAZO_L;  
         SocketListen serverSocket_L;
 
-        TPWrite "Esperando conexi髇 en el puerto 30010...";
+        TPWrite "Esperando conexi贸n en el puerto 30010...";
         g_Calibrate;   ! Calibramos el Gripper antes de usarlo
 
         WHILE TRUE DO
             SocketAccept serverSocket_L, clientSocket_L;
-            TPWrite "Conexi髇 establecida con el cliente (brazo de izquierda) ";
+            TPWrite "Conexi贸n establecida con el cliente (brazo de izquierda) ";
 
             WHILE TRUE DO
                 ! Verificar el estado del socket antes de recibir datos
                 IF SocketGetStatus(clientSocket_L) = ERR_SOCK_CLOSED THEN
                     ! Checar si disconectado, si es.. conectar de vuelta..
-                    TPWrite "Conexi髇 cerrada. Esperando nueva conexi髇...";
+                    TPWrite "Conexi贸n cerrada. Esperando nueva conexi贸n...";
                     EXIT;
                 ENDIF
                 
                 elapsed := 0;        
                 WHILE SocketPeek(clientSocket_L) = 0 DO
                     ! SocketPeek(clientSocket_L) checa si esta recibiendo bytes datas y cuentos
-                    ! Checar aqui la conexi髇, si =0 significa que no hay bytes, y entonces, no conexi髇..
+                    ! Checar aqui la conexi贸n, si =0 significa que no hay bytes, y entonces, no conexi贸n..
                     !WaitTime 100;   !this instruction blocks the entire program...
                     elapsed := elapsed + 100;
                     ! Esperar por intentar volver a conectarse
                     IF elapsed >= 100000000 THEN
-                        ! Si no conexi髇 despues de 100000000ms, el programa se apaga
-                        TPWrite "Timeout esperando datos, esperando nueva conexi髇...";
+                        ! Si no conexi贸n despues de 100000000ms, el programa se apaga
+                        TPWrite "Timeout esperando datos, esperando nueva conexi贸n...";
                         EXIT;
                     ENDIF
                 ENDWHILE
@@ -84,7 +84,7 @@ MODULE MainModule
                 SocketReceive clientSocket_L \Str := receivedData_L;
                 
                 IF StrLen(receivedData_L) >= 14 THEN
-                    ! Convertir la cadena en valores num閞icos
+                    ! Convertir la cadena en valores num茅ricos
                     x_str := StrPart(receivedData_L,1,3);    ! Extraer el la primer cadena numerica (de 1 a 1+3), correspondiente a las primeras coordenadas
                     ok1 := StrToVal(x_str,x_val);          ! Convertir esta cadena numerica en numeros/cifras 
                     y_str := StrPart(receivedData_L,5,4);  
@@ -112,10 +112,10 @@ MODULE MainModule
                     ENDIF
                             
                 ELSE 
-                    TPWrite "ERR: Datos inv醠idos -> ";
+                    TPWrite "ERR: Datos inv谩lidos -> ";
                 ENDIF
         
-                ! Mover el brazo (tool0) a la posici髇 recibida (target_pos_L) con una velocidad de 600mm/s en la zona 50
+                ! Mover el brazo (tool0) a la posici贸n recibida (target_pos_L) con una velocidad de 600mm/s en la zona 50
                 MoveJ target_pos_L, v600, z50, tool0;
                         
                 !IF NOT IsMoving() THEN
@@ -124,4 +124,5 @@ MODULE MainModule
             ENDWHILE
         ENDWHILE
     ENDPROC
+
 ENDMODULE
